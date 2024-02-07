@@ -16,7 +16,7 @@ def train(env, agent, num_episodes=1000, max_steps=10000, batch_size=32):
             # 执行动作并观察下一个状态和奖励
             # result = env.step(action)
             # print(result)
-            next_state, reward, done, _, info = env.step(action)
+            next_state, reward, done, _ = env.step(action)
 
             # 将经验存储到回放缓冲区
             agent.remember(state, action, reward, next_state, done)

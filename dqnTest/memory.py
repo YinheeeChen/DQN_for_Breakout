@@ -1,5 +1,6 @@
 # 实现经验回放缓冲区，用于存储先前的观察和动作，以便进行训练时使用。
-import random
+from random import sample
+from collections import deque
 import numpy as np
 
 
@@ -20,53 +21,34 @@ import numpy as np
 #     padded_array = np.pad(array, pad_width=pad_widths, mode='constant', constant_values=pad_value)
 #     return padded_array
 
-
+# 经验回放缓冲区
+# 用于存储先前的观察和动作，以便进行训练时使用。
+# 该类的实例将存储先前的观察、动作、奖励、下一个观察和终止标志，并提供方法用于插入和采样经验。
 class ReplayBuffer:
-    def __init__(self, capacity=10000):
-        self.capacity = capacity
-        self.memory = []  # 存储先前的观察和动作
-        self.position = 0  # 记录当前的位置
+    def __init__(self, buffer_size=100000):
+        self.buffer_size = buffer_size
+        self.buffer = deque(maxlen=buffer_size)
+        self.idx = 0
 
-    # 将一个新的观察和动作添加到缓冲区中。
-    def add(self, state, action, reward, next_state, done):
+    # 插入经验
+    def insert(self, sars):
+        self.buffer.append(sars)
 
-        transition = (state, action, reward, next_state, done)
+    # 采样经验
+    def sample(self, num_samples):
+        if num_samples > len(self.buffer):
+            return sample(self.buffer, len(self.buffer))
+        return sample(self.buffer, num_samples)
 
-        # 更新位置
-        self.position = (self.position + 1) % self.capacity
-        # 如果缓冲区未满，则将新的观察和动作添加到列表memory中；
-        # 否则，将新的观察和动作替换掉列表memory中的一个元素。
-        if len(self.memory) < self.capacity:
-            self.memory.append(transition)
-        # 否则，将新的观察和动作替换掉列表memory中的一个元素。
-        else:
-            self.memory[self.position] = transition
-
-    # 在您的代码中的 sample 方法中使用 pad_to_fixed_shape
-    def sample(self, batch_size):
-        batch = random.sample(self.memory, batch_size)
-
-        state_batch, action_batch, reward_batch, next_state_batch, done_batch = zip(*batch)
-
-        # 打印 state_batch 中的每个元素
-        for i, state in enumerate(state_batch):
-            print(f"Element {i + 1} in state_batch: {state.shape if state is not None else None}")
-        state_batch = [state for state in state_batch if state is not None]  # 过滤掉 state_batch 中的所有 None 元素
-
-        # # 找到 state_batch 中最大的形状
-        # max_state_shape = np.max([state.shape for state in state_batch if state is not None], axis=0)
-        #
-        # # 将 state_batch 中的所有数组填充为最大形状
-        # state_batch_padded = [self.pad_to_fixed_shape(state, max_state_shape) for state in state_batch if state is not None]
-
-        return (
-            np.stack(state_batch),
-            np.array(action_batch),
-            np.array(reward_batch),
-            np.stack(next_state_batch),
-            np.array(done_batch)
-        )
-
-    # __len__：返回缓冲区的当前大小。
     def __len__(self):
-        return len(self.memory)
+        return len(self.buffer)
+
+
+# 定义经验类
+class Memory:
+    def __init__(self, state, action, reward, next_state, done):
+        self.state = np.array(state, dtype=np.float32)  # 适当初始化并指定类型
+        self.action = action  # 适当初始化
+        self.reward = float(reward)  # 适当初始化并指定类型
+        self.next_state = np.array(next_state, dtype=np.float32)  # 适当初始化并指定类型
+        self.done = bool(done)  # 适当初始化并指定类型

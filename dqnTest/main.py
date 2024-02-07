@@ -2,11 +2,13 @@
 from agent import DQNAgent
 from environment import Environment
 from train import train
+import gymnasium as gym
 
 if __name__ == "__main__":
     # 初始化环境和代理
-    env = Environment('BreakoutNoFrameskip-v4')
-    agent = DQNAgent(input_size=env.observation_space_shape, output_size=env.action_space_size)
+    env = gym.make('BreakoutNoFrameskip-v4')
+    env = Environment(env, w=84, h=84, num_stack=4)
+    agent = DQNAgent(input_size=env.observation_space.shape, output_size=env.action_space.n)
 
 # 训练代理
     train(env, agent, num_episodes=1000)

@@ -1,3 +1,4 @@
+# 包含了一些辅助函数，用于在训练和测试过程中使用
 import cv2
 import gym
 import numpy as np
@@ -22,9 +23,8 @@ def run_test_episode(model, env, device, max_steps=1000):
     return reward, np.stack(frames, 0)
 
 
-class Environment(gym.Wrapper):
+class FrameStackingAndResizingEnv(gym.Wrapper):
     def __init__(self, env, w, h, num_stack=4):
-        # super().__init__(env)
         self.env = env
         self.n = num_stack
         self.w = w
@@ -61,4 +61,4 @@ class Environment(gym.Wrapper):
         return self.buffer.copy()
 
     def render(self, mode):
-        self.env.render(mode)
+        self.env.render()

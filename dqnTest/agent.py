@@ -5,6 +5,7 @@ import torch.optim as optim
 import numpy as np
 from model import QNetwork
 from memory import ReplayBuffer
+from memory import Memory
 
 
 class DQNAgent:
@@ -34,34 +35,29 @@ class DQNAgent:
         if len(self.memory) < batch_size:
             return
 
-        # 从回放缓冲区中采样一批转换
-        state_batch, action_batch, reward_batch, next_state_batch, done_batch = self.memory.sample(batch_size)
+        state_transitions = self.memory.sample(batch_size)
 
-        state_batch = torch.tensor(state_batch, dtype=torch.float32)
-        action_batch = torch.tensor(action_batch, dtype=torch.long)
-        reward_batch = torch.tensor(reward_batch, dtype=torch.float32)
-        next_state_batch = torch.tensor(next_state_batch, dtype=torch.float32)
-        done_batch = torch.tensor(done_batch, dtype=torch.float32)
+        state_batch = torch.stack([torch.tensor(s.state, dtype=torch.float32) for s in state_transitions])
+        reward_batch = torch.stack([torch.tensor([s.reward], dtype=torch.float32) for s in state_transitions])
+        done_batch = torch.stack([torch.tensor([0]) if s.done else torch.tensor([1]) for s in state_transitions])
+        next_state_batch = torch.stack([torch.tensor(s.next_state, dtype=torch.float32) for s in state_transitions])
+        action_batch = torch.tensor([s.action for s in state_transitions], dtype=torch.long)
 
-        # 计算 q 值
         q_values = self.q_network(state_batch)
         q_values_for_actions = q_values.gather(1, action_batch.unsqueeze(1))
 
-        # 使用目标q网络计算目标q值
         next_q_values = self.target_q_network(next_state_batch)
         max_next_q_values = torch.max(next_q_values, 1)[0].unsqueeze(1)
         target_q_values = reward_batch + (1 - done_batch) * self.gamma * max_next_q_values
 
-        # 计算损失并执行梯度下降步骤
         loss = torch.nn.functional.smooth_l1_loss(q_values_for_actions, target_q_values)
         self.optimizer.zero_grad()
+
         loss.backward()
         self.optimizer.step()
 
-        # 更新目标Q-network
         self.update_target_q_network()
 
-        # 更新epsilon
         self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_end)
 
     # 更新目标Q网络：通过从当前Q网络复制参数来更新目标Q网络
@@ -70,4 +66,6 @@ class DQNAgent:
 
     # 与环境交互：与环境交互并将经验存储在经验回放缓冲区中。
     def remember(self, state, action, reward, next_state, done):
-        self.memory.add(state, action, reward, next_state, done)
+        state = torch.tensor(state, dtype=torch.float32)
+        next_state = torch.tensor(next_state, dtype=torch.float32)
+        self.memory.insert(Memory(state, action, reward, next_state, done))
